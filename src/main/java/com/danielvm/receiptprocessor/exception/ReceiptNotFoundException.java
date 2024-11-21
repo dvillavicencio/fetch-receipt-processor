@@ -1,8 +1,9 @@
 package com.danielvm.receiptprocessor.exception;
 
-public class ReceiptNotFoundException extends RuntimeException {
+import lombok.Data;
 
-  private String message;
+@Data
+public class ReceiptNotFoundException extends RuntimeException {
 
   public ReceiptNotFoundException(String message) {
     super(message);

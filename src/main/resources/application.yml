@@ -1,3 +1,8 @@
 spring:
+  datasource:
+    # Host should be the postgres container in Docker Compose
+    url: jdbc:postgresql://postgres:5432/receipt
+    username: username
+    password: password
   application:
     name: receiptprocessor

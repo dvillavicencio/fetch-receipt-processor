@@ -1,6 +1,7 @@
 package com.danielvm.receiptprocessor.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -9,17 +10,23 @@ import static org.mockito.Mockito.when;
 import com.danielvm.receiptprocessor.dto.Item;
 import com.danielvm.receiptprocessor.dto.Receipt;
 import com.danielvm.receiptprocessor.entity.ReceiptEntity;
+import com.danielvm.receiptprocessor.exception.ReceiptNotFoundException;
 import com.danielvm.receiptprocessor.repository.ReceiptRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
+import java.util.stream.Stream;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -102,8 +109,7 @@ public class ReceiptProcessingServiceTest {
   private static @NotNull Receipt getAlphanumericReceipt() {
     return new Receipt("--=-=/``2", // 1 point
         LocalDate.of(2024, 7, 30), LocalTime.of(9, 0),
-        Collections.emptyList(),
-        new BigDecimal("81.12")
+        Collections.emptyList(), new BigDecimal("81.12")
     );
   }
 
@@ -117,6 +123,55 @@ public class ReceiptProcessingServiceTest {
   private static @NotNull Receipt getNoCentsReceipt() {
     return new Receipt("", LocalDate.of(2024, 7, 30), LocalTime.of(9, 0), Collections.emptyList(),
         new BigDecimal("92.00"));
+  }
+
+  /**
+   * Day of the purchase date is odd = 6 points
+   * <p>
+   * Total = 6 points
+   */
+  private static Receipt getOddDayReceipt() {
+    return new Receipt("", LocalDate.of(2024, 7, 7), LocalTime.of(9, 0), Collections.emptyList(),
+        new BigDecimal("124.13"));
+  }
+
+  /**
+   * Various arguments with edge cases on purchase time, like 2:01pm and 3:59pm
+   */
+  private static Stream<Arguments> validPurchaseTimeArguments() {
+    return Stream.of(
+        Arguments.of(
+            new Receipt("", LocalDate.of(2024, 7, 30), LocalTime.of(14, 1), Collections.emptyList(),
+                new BigDecimal("81.31"))),
+        Arguments.of(
+            new Receipt("", LocalDate.of(2024, 7, 30), LocalTime.of(15, 59),
+                Collections.emptyList(),
+                new BigDecimal("81.31"))),
+        Arguments.of(
+            new Receipt("", LocalDate.of(2024, 7, 30), LocalTime.of(15, 0), Collections.emptyList(),
+                new BigDecimal("81.31")))
+    );
+  }
+
+  /**
+   * Various arguments with edge cases on purchase time, like 2:00pm and 4:00pm should be invalid
+   * and given no points
+   */
+  private static Stream<Arguments> invalidPurchaseTimeArguments() {
+    return Stream.of(
+        Arguments.of(
+            new Receipt("", LocalDate.of(2024, 7, 30), LocalTime.of(14, 0),
+                Collections.emptyList(), new BigDecimal("81.31"))),
+        Arguments.of(
+            new Receipt("", LocalDate.of(2024, 7, 30), LocalTime.of(16, 0),
+                Collections.emptyList(), new BigDecimal("81.31"))),
+        Arguments.of(
+            new Receipt("", LocalDate.of(2024, 7, 30), LocalTime.of(16, 1),
+                Collections.emptyList(), new BigDecimal("81.31"))),
+        Arguments.of(
+            new Receipt("", LocalDate.of(2024, 7, 30), LocalTime.of(13, 59),
+                Collections.emptyList(), new BigDecimal("81.31")))
+    );
   }
 
   @Test
@@ -196,5 +251,79 @@ public class ReceiptProcessingServiceTest {
     // then: the database entity should have 75 points
     verify(repository, times(1)).save(argumentCaptor.capture());
     assertThat(argumentCaptor.getValue().points()).isEqualTo(75);
+  }
+
+  @Test
+  void should_validate_date_rule() {
+    // given: a receipt with a date that has an odd day of the month
+    ArgumentCaptor<ReceiptEntity> argumentCaptor = ArgumentCaptor.forClass(ReceiptEntity.class);
+    Receipt receipt = getOddDayReceipt();
+
+    when(repository.save(any())).thenReturn(new ReceiptEntity(1L, 6));
+
+    // when: process is receipt is called
+    sut.processReceipt(receipt);
+
+    // then: the database entity should have 6 points
+    verify(repository, times(1)).save(argumentCaptor.capture());
+    assertThat(argumentCaptor.getValue().points()).isEqualTo(6);
+  }
+
+  @ParameterizedTest
+  @MethodSource("validPurchaseTimeArguments")
+  void should_validate_purchase_time_rule(Receipt receipt) {
+    // given: a receipt with a date that has a time between 2:00pm and 4:00pm
+    ArgumentCaptor<ReceiptEntity> argumentCaptor = ArgumentCaptor.forClass(ReceiptEntity.class);
+    when(repository.save(any())).thenReturn(new ReceiptEntity(1L, 10));
+
+    // when: process receipt is called
+    sut.processReceipt(receipt);
+
+    // then: the database entity should have only 10 points
+    verify(repository, times(1)).save(argumentCaptor.capture());
+    assertThat(argumentCaptor.getValue().points()).isEqualTo(10);
+  }
+
+  @ParameterizedTest
+  @MethodSource("invalidPurchaseTimeArguments")
+  void should_validate_invalid_purchase_time_rule(Receipt receipt) {
+    // given: a receipt with a date time that is not between 2:00pm and 4:00pm
+    ArgumentCaptor<ReceiptEntity> argumentCaptor = ArgumentCaptor.forClass(ReceiptEntity.class);
+    when(repository.save(any())).thenReturn(new ReceiptEntity(1L, 10));
+
+    // when: process receipt is called
+    sut.processReceipt(receipt);
+
+    // then: the database entity should have no points
+    verify(repository, times(1)).save(argumentCaptor.capture());
+    assertThat(argumentCaptor.getValue().points()).isEqualTo(0);
+  }
+
+  @Test
+  void should_return_points_for_a_given_receipt_id() {
+    // given: a receipt entity ID
+    Long id = 1L;
+    when(repository.findById(id)).thenReturn(Optional.of(new ReceiptEntity(1L, 10)));
+
+    // when: a getPoints is called
+    var entity = sut.getPoints(id);
+
+    // then: the resulting response only has the points associated with that entity
+    verify(repository, times(1)).findById(id);
+    assertThat(entity.points()).isEqualTo(10);
+  }
+
+  @Test
+  void should_throw_an_error_for_non_existent_receipt_id() {
+    // given: a receipt entity ID that's not in the DB
+    Long id = 2L;
+    when(repository.findById(id)).thenReturn(Optional.empty());
+
+    // when: a getPoints is called
+    // then: an exception of ReceiptNotFound is thrown with the correct message
+    assertThatExceptionOfType(ReceiptNotFoundException.class)
+        .isThrownBy(() -> sut.getPoints(id))
+        .withMessage("Receipt with ID [%s] could not be found".formatted(id));
+
   }
 }

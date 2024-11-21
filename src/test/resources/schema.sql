@@ -1,4 +1,5 @@
-CREATE TABLE IF NOT EXISTS receipt(
+CREATE TABLE IF NOT EXISTS receipt
+(
     id serial PRIMARY KEY,
     points INTEGER
-)
+);

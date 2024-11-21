@@ -1,5 +1,6 @@
 package com.danielvm.receiptprocessor.service;
 
+import com.danielvm.receiptprocessor.dto.PointsProcessResponse;
 import com.danielvm.receiptprocessor.dto.PointsResponse;
 import com.danielvm.receiptprocessor.dto.Receipt;
 import com.danielvm.receiptprocessor.entity.ReceiptEntity;
@@ -120,7 +121,7 @@ public class ReceiptProcessingService {
     } else {
       int numberOfPairs = r.items().size() / 2;
       int result = numberOfPairs * 5;
-      log.info("Number of pairs of to are [{}]. +{} points", numberOfPairs, result);
+      log.info("There are {} pairs of two. +{} points", numberOfPairs, result);
       return result;
     }
   };
@@ -148,12 +149,13 @@ public class ReceiptProcessingService {
    * @param receipt the receipt object
    * @return the ID of the database object created
    */
-  public Long processReceipt(Receipt receipt) {
+  public PointsProcessResponse processReceipt(Receipt receipt) {
     int points = rulesList.stream()
         .mapToInt(r -> r.apply(receipt)).sum(); // apply all rules to the receipt
     log.info("Total point(s) for receipt for retailer [{}] are: {} points", receipt.retailer(),
         points);
-    return receiptRepository.save(new ReceiptEntity(null, points)).id();
+    var createdEntity = receiptRepository.save(new ReceiptEntity(null, points));
+    return new PointsProcessResponse(createdEntity.id());
   }
 
   /**
