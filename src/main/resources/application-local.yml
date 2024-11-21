@@ -2,10 +2,3 @@ spring:
   datasource:
     # Changed postgres host to localhost for local testing
     url: jdbc:postgresql://localhost:5432/receipt
-    username: username
-    password: password
-  application:
-    name: receiptprocessor
-  sql:
-    init:
-      mode: always

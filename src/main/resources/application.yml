@@ -6,3 +6,7 @@ spring:
     password: password
   application:
     name: receiptprocessor
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
