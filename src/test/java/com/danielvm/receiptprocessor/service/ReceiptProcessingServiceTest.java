@@ -66,7 +66,7 @@ public class ReceiptProcessingServiceTest {
   }
 
   /**
-   * 5.99 * 0.2 = 1.198 -> 1 point
+   * 5.99 * 0.2 = 1.198 -> 2 points
    * </br>
    * 573.12 * 0.2 = 114.624 -> 115 points
    * </br>
@@ -232,9 +232,9 @@ public class ReceiptProcessingServiceTest {
     // when: process receipt is called
     sut.processReceipt(receipt);
 
-    // then: the database entity should have 126 points
+    // then: the database entity should have 127 points
     verify(repository, times(1)).save(argumentCaptor.capture());
-    assertThat(argumentCaptor.getValue().points()).isEqualTo(126);
+    assertThat(argumentCaptor.getValue().points()).isEqualTo(127);
   }
 
   @Test

@@ -80,14 +80,14 @@ public class ReceiptControllerTest {
         .content(resource.getContentAsByteArray());
     var response = mockMvc.perform(request);
 
-    // then: the points result is saved to the DB
+    // then: the points result is saved to the DB with the correct amount of points
     Iterator<ReceiptEntity> receipts = receiptRepository.findAll().iterator();
     List<ReceiptEntity> list = new ArrayList<>();
     while (receipts.hasNext()) {
       list.add(receipts.next());
     }
     assertThat(list).hasSize(1);
-    assertThat(list.getFirst().points()).isEqualTo(26);
+    assertThat(list.getFirst().points()).isEqualTo(28);
 
     // and: the response is 200 OK with the ID of the points entity
     response.andDo(MockMvcResultHandlers.print());

@@ -35,11 +35,11 @@ public class ReceiptProcessingService {
           })
           .mapToInt(item -> {
             var mult = item.price().multiply(new BigDecimal("0.2")).doubleValue();
-            var result = Math.toIntExact(Math.round(mult));
+            var roundedResult = Math.ceil(mult);
             log.info(
                 "Item [{}] price multiplied by 0.2 is [{}]. Rounded up to [{}]. +{} points",
-                item.shortDescription(), mult, result, result);
-            return result;
+                item.shortDescription(), mult, roundedResult, roundedResult);
+            return (int) roundedResult;
           })
           .sum();
     } else {
