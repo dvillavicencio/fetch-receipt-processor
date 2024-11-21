@@ -67,8 +67,11 @@ docker compose down
 ___
 
 ## Troubleshooting
+### 1. Logs
 If you need to see the logs of one of the docker-compose services you can do so by using `docker logs` on the corresponding container
 ```bash
 docker logs receipt-processor
 docker logs postgres
 ```
+### 2. Running the application
+Make sure there's nothing running on port `8080` and port `5432` in your local machine. By default the fetch-receipt-processor waits until PostgresQL is in a healthy state.
