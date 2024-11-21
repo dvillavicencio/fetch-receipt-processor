@@ -1,7 +1,7 @@
 # Receipt Processor
 > Developed by Daniel Villavicencio
 
-Receipt processor was made using Spring Boot and Java 21.
+Receipt processor was made using Spring Boot, PostgresQL and Java 21.
 
 ___
 
